@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,53 +6,65 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 
 type Blade = {
   bladeName: string;
   bladePrice: string;
   bladeDetail: string;
+  bladeImage?: string;
 };
 
 export default function Home() {
   const [bladeName, setBladeName] = useState("");
   const [price, setPrice] = useState("");
   const [detail, setDetail] = useState("");
-  const [allBlade, setAllBlade] = useState<Blade[]>([]);
+  const [image, setImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadBlade();
-  }, []);
+  async function pickImage() {
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  async function loadBlade() {
-    const data = await AsyncStorage.getItem("blade");
-    if (data) {
-      setAllBlade(JSON.parse(data));
+    if (!permission.granted) {
+      alert("Permission required!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
     }
   }
 
-async function addBlade() {
-  if (!bladeName || !price) return;
+  async function addBlade() {
+    if (!bladeName || !price) return;
 
-  const blade: Blade = {
-    bladeName,
-    bladePrice: price,
-    bladeDetail: detail,
-  };
+    const blade: Blade = {
+      bladeName,
+      bladePrice: price,
+      bladeDetail: detail,
+      bladeImage: image ?? undefined,
+    };
 
+    const existingData = await AsyncStorage.getItem("blade");
+    const parsedData: Blade[] = existingData
+      ? JSON.parse(existingData)
+      : [];
 
-  const existingData = await AsyncStorage.getItem("blade");
-  const parsedData: Blade[] = existingData ? JSON.parse(existingData) : [];
+    const updatedData = [...parsedData, blade];
 
-  const updatedData = [...parsedData, blade];
+    await AsyncStorage.setItem("blade", JSON.stringify(updatedData));
 
-  await AsyncStorage.setItem("blade", JSON.stringify(updatedData));
-
-  setBladeName("");
-  setPrice("");
-  setDetail("");
-}
+    router.back(); // กลับหน้า list
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -90,6 +102,18 @@ async function addBlade() {
             multiline
           />
         </View>
+
+        {/* ปุ่มเลือกรูป */}
+        <TouchableOpacity style={styles.imageBtn} onPress={pickImage}>
+          <Text style={styles.imageText}>เลือกรูปภาพ</Text>
+        </TouchableOpacity>
+
+        {image && (
+          <Image
+            source={{ uri: image }}
+            style={styles.previewImage}
+          />
+        )}
 
         <TouchableOpacity style={styles.button} onPress={addBlade}>
           <Text style={styles.buttonText}>บันทึกใบมีด</Text>
@@ -141,8 +165,25 @@ const styles = StyleSheet.create({
     height: 90,
     textAlignVertical: "top",
   },
-  button: {
+  imageBtn: {
+    backgroundColor: "#1976D2",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
     marginTop: 10,
+  },
+  imageText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  previewImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  button: {
+    marginTop: 16,
     backgroundColor: "#FF5252",
     paddingVertical: 16,
     borderRadius: 14,

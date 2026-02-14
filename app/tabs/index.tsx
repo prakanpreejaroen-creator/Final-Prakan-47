@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -14,21 +14,25 @@ type Blade = {
   bladeName: string;
   bladePrice: string;
   bladeDetail: string;
+  bladeImage?: string; // 🔥 รองรับรูป
 };
 
 export default function BladeListScreen() {
   const [allBlade, setAllBlade] = useState<Blade[]>([]);
 
- useFocusEffect(
-  useCallback(() => {
-    loadBlade();
-  }, [])
-);
+  useFocusEffect(
+    useCallback(() => {
+      loadBlade();
+    }, [])
+  );
 
   async function loadBlade() {
-    const data = await AsyncStorage.getItem("blade");
-    if (data) {
-      setAllBlade(JSON.parse(data));
+    try {
+      const data = await AsyncStorage.getItem("blade");
+      const parsedData: Blade[] = data ? JSON.parse(data) : [];
+      setAllBlade(parsedData);
+    } catch (error) {
+      console.log("Load error:", error);
     }
   }
 
@@ -48,6 +52,15 @@ export default function BladeListScreen() {
         showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) => (
           <View style={styles.card}>
+
+            {/* 🔥 แสดงรูปถ้ามี */}
+            {item.bladeImage && (
+              <Image
+                source={{ uri: item.bladeImage }}
+                style={styles.image}
+              />
+            )}
+
             <View style={styles.topRow}>
               <Text style={styles.name}>{item.bladeName}</Text>
               <View style={styles.priceBadge}>
@@ -67,7 +80,9 @@ export default function BladeListScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>ยังไม่มีรายการใบมีด 🗡</Text>
+            <Text style={styles.emptyText}>
+              ยังไม่มีรายการใบมีด 🗡
+            </Text>
           </View>
         }
       />
@@ -96,6 +111,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 5,
+  },
+  image: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   topRow: {
     flexDirection: "row",
